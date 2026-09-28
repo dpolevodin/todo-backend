@@ -6,26 +6,18 @@ import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.MethodArgumentNotValidException
 import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.RestControllerAdvice
-import org.springframework.web.server.ResponseStatusException
 
 @RestControllerAdvice
 class GlobalExceptionHandler {
 
-
-    @ExceptionHandler(ResponseStatusException::class)
-    fun handleResponseStatusException(
-        exception: ResponseStatusException
-    ): ResponseEntity<ApiError> {
-        val status = exception.statusCode
-
-        return ResponseEntity
-            .status(status)
-            .body(
-                ApiError(
-                    status = status.value(),
-                    message = exception.reason ?: "Request failed"
-                )
+    @ExceptionHandler(TodoNotFoundException::class)
+    fun handleTodoNotFound(exception: TodoNotFoundException): ResponseEntity<ApiError> {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(
+            ApiError(
+                status = HttpStatus.NOT_FOUND.value(),
+                message = exception.message ?: "Todo not found"
             )
+        )
     }
 
     @ExceptionHandler(MethodArgumentNotValidException::class)

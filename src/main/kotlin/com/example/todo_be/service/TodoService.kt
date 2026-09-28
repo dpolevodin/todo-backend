@@ -2,23 +2,19 @@ package com.example.todo_be.service
 
 import com.example.todo_be.dto.CreateTodoRequest
 import com.example.todo_be.dto.UpdateTodoRequest
+import com.example.todo_be.exception.TodoNotFoundException
 import com.example.todo_be.model.Todo
 import com.example.todo_be.repository.TodoRepository
 import jakarta.annotation.PostConstruct
-import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
-import org.springframework.web.server.ResponseStatusException
 
 @Service
 class TodoService(
     private val todoRepository: TodoRepository
 ) {
 
-    fun getTodo(id: Long): Todo? {
-        return todoRepository.findById(id) ?: throw ResponseStatusException(
-            HttpStatus.NOT_FOUND,
-            "Todo with id $id not found"
-        )
+    fun getTodo(id: Long): Todo {
+        return todoRepository.findById(id) ?: throw TodoNotFoundException(id)
     }
 
     fun getTodos(): List<Todo> {
@@ -36,10 +32,7 @@ class TodoService(
 
     fun updateTodo(id: Long, request: UpdateTodoRequest): Todo {
         val todo = todoRepository.findById(id)
-            ?: throw ResponseStatusException(
-                HttpStatus.NOT_FOUND,
-                "Todo with id $id not found"
-            )
+            ?: throw TodoNotFoundException(id)
 
         val updatedTodo = Todo(
             id = todo.id,
@@ -51,10 +44,7 @@ class TodoService(
     }
 
     fun deleteTodo(id: Long) {
-        todoRepository.deleteById(id) ?: throw ResponseStatusException(
-            HttpStatus.NOT_FOUND,
-            "Todo with id $id not found"
-        )
+        todoRepository.deleteById(id) ?: throw TodoNotFoundException(id)
     }
 
     @PostConstruct
