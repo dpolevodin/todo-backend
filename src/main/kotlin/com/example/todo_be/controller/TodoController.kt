@@ -1,6 +1,7 @@
 package com.example.todo_be.controller
 
 import com.example.todo_be.dto.CreateTodoRequest
+import com.example.todo_be.dto.TodoPageResponse
 import com.example.todo_be.dto.UpdateTodoRequest
 import com.example.todo_be.model.ApiError
 import com.example.todo_be.model.Todo
@@ -12,6 +13,9 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.responses.ApiResponses
 import io.swagger.v3.oas.annotations.tags.Tag
 import jakarta.validation.Valid
+import org.springframework.data.domain.Pageable
+import org.springframework.data.domain.Sort
+import org.springframework.data.web.PageableDefault
 import org.springframework.http.HttpStatus
 import org.springframework.web.bind.annotation.*
 
@@ -66,8 +70,17 @@ class TodoController(
         ]
     )
     @GetMapping("/api/todos")
-    fun getTodos(): List<Todo> {
-        return todoService.getTodos()
+    fun getTodos(
+        @PageableDefault(
+            size = 10,
+            sort = ["createdAt"],
+            direction = Sort.Direction.DESC
+        ) pageable: Pageable
+    ): TodoPageResponse {
+        if (pageable.pageSize > MAX_PAGE_SIZE) {
+            throw IllegalArgumentException("Page size must not exceed $MAX_PAGE_SIZE")
+        }
+        return todoService.getTodos(pageable)
     }
 
     @ApiResponses(
@@ -133,5 +146,9 @@ class TodoController(
         @PathVariable("id") id: Long
     ) {
         todoService.deleteTodo(id)
+    }
+
+    private companion object {
+        const val MAX_PAGE_SIZE = 100
     }
 }

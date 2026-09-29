@@ -1,77 +1,91 @@
 package com.example.todo_be.service
 
 import com.example.todo_be.dto.CreateTodoRequest
+import com.example.todo_be.dto.TodoPageResponse
 import com.example.todo_be.dto.UpdateTodoRequest
 import com.example.todo_be.exception.TodoNotFoundException
 import com.example.todo_be.model.Todo
-import com.example.todo_be.repository.TodoRepository
-import jakarta.annotation.PostConstruct
+import com.example.todo_be.model.TodoEntity
+import com.example.todo_be.repository.TodoJpaRepository
+import org.springframework.data.domain.Pageable
 import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Transactional
 
 @Service
+@Transactional(readOnly = true)
 class TodoService(
-    private val todoRepository: TodoRepository
+    private val todoJpaRepository: TodoJpaRepository
 ) {
+    private val allowedSortFields = setOf(
+        "title", "completed", "priority", "createdAt"
+    )
 
     fun getTodo(id: Long): Todo {
-        return todoRepository.findById(id) ?: throw TodoNotFoundException(id)
+        val entity = todoJpaRepository.findById(id)
+            .orElseThrow { TodoNotFoundException(id) }
+
+        return entity.toTodo()
     }
 
-    fun getTodos(): List<Todo> {
-        return todoRepository.findAll()
+    fun getTodos(pageable: Pageable): TodoPageResponse {
+        pageable.sort.forEach { order ->
+            if (order.property !in allowedSortFields) {
+                throw IllegalArgumentException("${order.property} is not allowed")
+            }
+        }
+        val page = todoJpaRepository.findAll(pageable).map { it.toTodo() }
+
+        return TodoPageResponse(
+            items = page.content,
+            page = page.number,
+            size = page.size,
+            totalElements = page.totalElements,
+            totalPages = page.totalPages,
+        )
     }
 
+    @Transactional
     fun createTodo(request: CreateTodoRequest): Todo {
-        val todo = Todo(
-            id = todoRepository.generateId(),
-            title = request.title,
-            completed = false
-        )
-        return todoRepository.save(todo)
+        val entity = TodoEntity()
+
+        entity.title = request.title
+        entity.completed = false
+        entity.priority = request.priority
+
+        val savedEntity = todoJpaRepository.save(entity)
+
+        return savedEntity.toTodo()
     }
 
+    @Transactional
     fun updateTodo(id: Long, request: UpdateTodoRequest): Todo {
-        val todo = todoRepository.findById(id)
-            ?: throw TodoNotFoundException(id)
+        val entity = todoJpaRepository.findById(id)
+            .orElseThrow { TodoNotFoundException(id) }
 
-        val updatedTodo = Todo(
-            id = todo.id,
-            title = request.title ?: todo.title,
-            completed = request.completed ?: todo.completed
-        )
+        entity.title = request.title ?: entity.title
+        entity.completed = request.completed ?: entity.completed
+        entity.priority = request.priority ?: entity.priority
 
-        return todoRepository.save(updatedTodo)
+        return entity.toTodo()
     }
 
+    @Transactional
     fun deleteTodo(id: Long) {
-        todoRepository.deleteById(id) ?: throw TodoNotFoundException(id)
+        if (!todoJpaRepository.existsById(id)) {
+            throw TodoNotFoundException(id)
+        }
+
+        todoJpaRepository.deleteById(id)
     }
 
-    @PostConstruct
-    fun init() {
-        todoRepository.save(
-            Todo(
-                id = todoRepository.generateId(),
-                title = "Learn Kotlin init task",
-                completed = false,
-            )
-        )
-
-        todoRepository.save(
-            Todo(
-                id = todoRepository.generateId(),
-                title = "Learn Spring!",
-                completed = false
-            )
-        )
-
-        todoRepository.save(
-            Todo(
-                id = todoRepository.generateId(),
-                title = "Build TODO Api!",
-                completed = false,
-            )
+    private fun TodoEntity.toTodo(): Todo {
+        return Todo(
+            id = this.id!!,
+            title = this.title,
+            completed = this.completed,
+            priority = this.priority,
         )
     }
 }
+
 

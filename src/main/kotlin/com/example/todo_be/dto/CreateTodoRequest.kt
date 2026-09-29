@@ -5,4 +5,5 @@ import jakarta.validation.constraints.NotBlank
 data class CreateTodoRequest(
     @field:NotBlank
     val title: String,
+    val priority: Int = 0,
 )
